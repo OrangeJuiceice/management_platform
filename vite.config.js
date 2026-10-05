@@ -30,6 +30,19 @@ export default defineConfig({
       autoInstall: true
     })
   ],
+  server: {
+    port: 5000, // 前端端口
+    open: true, // 自动打开浏览器
+    cors: true, // 允许跨域
+    // 跨域代理
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000', // 后端地址
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

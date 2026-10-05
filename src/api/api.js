@@ -1,4 +1,4 @@
-/* 
+﻿/* 
 整个项目api的统一管理 
 */
 import request from './request.js'
@@ -28,7 +28,7 @@ export default {
   // 请求用户列表数据
   getUserData(data) {
     return request({
-      url: '/user/getUserData',
+      url: '/user',
       method: 'GET',
       data
     })

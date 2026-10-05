@@ -52,7 +52,6 @@ const formInline = reactive({
 // 搜索和分页配置
 const config = reactive({
   name: '',
-  total: 0,
   page: 1
 })
 
