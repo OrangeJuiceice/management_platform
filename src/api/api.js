@@ -37,7 +37,7 @@ export default {
   deleteUser(data) {
     return request({
       url: '/user/deleteUser',
-      method: 'GET',
+      method: 'POST',
       data
     })
   },

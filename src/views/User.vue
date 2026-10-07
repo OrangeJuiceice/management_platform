@@ -153,7 +153,7 @@ const onSubmit = async () => {
       if (action.value === 'add') {
         res = await proxy.$api.addUser(formUser)
       } else if (action.value === 'edit') {
-        return
+        res = await proxy.$api.updateUser(formUser)
       }
       // 如果新增用户或编辑用户成功，就关闭弹窗，重置表单，刷新用户列表
       if (res) {
@@ -161,7 +161,7 @@ const onSubmit = async () => {
         proxy.$refs.formRef.resetFields()
         ElMessage({
           showClose: true,
-          message: '添加成功',
+          message: action.value === 'add' ? '添加成功' : '编辑成功',
           type: 'success'
         })
         getUserData()
@@ -302,6 +302,15 @@ onMounted(() => {
           <el-button type="primary" @click="onSubmit">确定</el-button>
         </el-form-item>
       </el-row>
+      <!-- 设置一个隐藏的input框，当action为edit时，需要将id赋值给这个input框，
+      用于更新用户接口的参数 -->
+      <el-form-item>
+        <el-input
+          v-if="action === 'edit'"
+          type="hidden"
+          v-model="formUser.id"
+        ></el-input>
+      </el-form-item>
     </el-form>
   </el-dialog>
 </template>
