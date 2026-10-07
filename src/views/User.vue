@@ -7,7 +7,6 @@ const { proxy } = getCurrentInstance()
 // 请求用户列表数据
 const getUserData = async () => {
   const res = await proxy.$api.getUserData(config)
-  // console.log(res)
   // 处理性别数据
   tableData.value = res.list.map((item) => ({
     ...item,
@@ -22,25 +21,49 @@ const getUserData = async () => {
 const tableLable = reactive([
   {
     prop: 'name',
-    label: '姓名'
+    label: '姓名',
+    width: '90'
   },
   {
-    prop: 'addr',
-    label: '地址',
-    width: '400'
-  },
-  {
-    prop: 'age',
-    label: '年龄'
-  },
-  {
-    prop: 'birth',
-    label: '出生日期',
-    width: '200'
+    prop: 'position',
+    label: '职务',
+    width: '90'
   },
   {
     prop: 'sexLable',
-    label: '性别'
+    label: '性别',
+    width: '70'
+  },
+  {
+    prop: 'nativePlace',
+    label: '籍贯',
+    width: '150'
+  },
+  {
+    prop: 'competencyExpiry',
+    label: '适任证书有效期至',
+    width: '150'
+  },
+  {
+    prop: 'rankLevel',
+    label: '等级与职务',
+    width: '280',
+    className: 'multi-line-cell'
+  },
+  {
+    prop: 'phone',
+    label: '手机号码',
+    width: '130'
+  },
+  {
+    prop: 'trainingExpiry',
+    label: '海船船员培训证书有效期至',
+    width: '170'
+  },
+  {
+    prop: 'healthExpiry',
+    label: '海船船员健康证书有效期至',
+    width: '170'
   }
 ])
 
@@ -93,24 +116,38 @@ const action = ref('add')
 // 新增用户表单数据
 const formUser = reactive({
   name: '',
-  addr: '',
-  age: '',
-  birth: '',
-  sex: ''
+  position: '',
+  sex: '',
+  nativePlace: '',
+  competencyExpiry: '',
+  rankLevel: '',
+  phone: '',
+  trainingExpiry: '',
+  healthExpiry: ''
 })
 
 // 新增用户/编辑用户表单校验规则
 const rules = reactive({
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  addr: [{ required: true, message: '请输入地址', trigger: 'blur' }],
-  age: [{ required: true, message: '请输入年龄', trigger: 'blur' }],
-  birth: [{ required: true, message: '请输入出生日期', trigger: 'blur' }],
-  sex: [{ required: true, message: '请选择性别', trigger: 'change' }]
+  position: [{ required: true, message: '请输入职务', trigger: 'blur' }],
+  sex: [{ required: true, message: '请选择性别', trigger: 'change' }],
+  nativePlace: [{ required: true, message: '请输入籍贯', trigger: 'blur' }],
+  competencyExpiry: [
+    { required: true, message: '请选择日期', trigger: 'change' }
+  ],
+  rankLevel: [{ required: true, message: '请输入等级与职务', trigger: 'blur' }],
+  phone: [{ required: true, message: '请输入手机号码', trigger: 'blur' }],
+  trainingExpiry: [
+    { required: true, message: '请选择日期', trigger: 'change' }
+  ],
+  healthExpiry: [{ required: true, message: '请选择日期', trigger: 'change' }]
 })
 
 // 新增用户弹窗打开事件
 const handleAdd = () => {
   action.value = 'add'
+  // 重置 id，避免上次编辑残留
+  formUser.id = ''
   dialogVisible.value = true
 }
 
@@ -136,6 +173,14 @@ const timeFormat = (time) => {
   day = day < 10 ? '0' + day : day
   return `${year}-${month}-${day}`
 }
+
+// 格式化单个日期字段：如果已是 yyyy-MM-dd 就直接用，否则转格式
+const formatDateField = (fieldName) => {
+  const val = formUser[fieldName]
+  if (!val) return
+  formUser[fieldName] = /^\d{4}-\d{2}-\d{2}$/.test(val) ? val : timeFormat(val)
+}
+
 // 新增用户/编辑用户提交事件
 const onSubmit = async () => {
   // 校验表单
@@ -144,11 +189,10 @@ const onSubmit = async () => {
     if (valid) {
       // 用res接收新增用户或编辑用户接口的返回值
       let res = null
-      // 无论是新增用户还是编辑用户，都需要格式化日期
-      // 如果日期格式是yyyy-MM-dd，就直接赋值，否则就化为yyyy-MM-dd格式
-      formUser.birth = /^\d{4}-\d{2}-\d{2}$/.test(formUser.birth)
-        ? formUser.birth
-        : timeFormat(formUser.birth)
+      // 处理 3 个日期字段
+      formatDateField('competencyExpiry')
+      formatDateField('trainingExpiry')
+      formatDateField('healthExpiry')
 
       if (action.value === 'add') {
         res = await proxy.$api.addUser(formUser)
@@ -221,6 +265,7 @@ onMounted(() => {
         :label="item.label"
         :prop="item.prop"
         :width="item.width ? item.width : '125'"
+        :class-name="item.className || ''"
       />
       <el-table-column fixed="right" label="Operations" min-width="120">
         <template #default="scope">
@@ -246,10 +291,17 @@ onMounted(() => {
   <el-dialog
     v-model="dialogVisible"
     :title="action === 'add' ? '新增用户' : '编辑用户'"
-    width="35%"
+    width="50%"
     :before-close="handleClose"
   >
-    <el-form :inline="true" :model="formUser" :rules="rules" ref="formRef">
+    <el-form
+      :inline="true"
+      :model="formUser"
+      :rules="rules"
+      ref="formRef"
+      label-width="150px"
+      class="crew-form"
+    >
       <el-row>
         <el-col :span="12">
           <el-form-item label="姓名" prop="name">
@@ -260,41 +312,89 @@ onMounted(() => {
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="年龄" prop="age">
+          <el-form-item label="职务" prop="position">
             <el-input
-              v-model="formUser.age"
-              placeholder="请输入年龄"
+              v-model="formUser.position"
+              placeholder="请输入职务"
             ></el-input>
           </el-form-item>
         </el-col>
       </el-row>
       <el-row>
         <el-col :span="12">
-          <!--需要注意的是设置了:inline="true"，
-		      会对el-select的样式造成影响，我们通过给他设置一个class=select-clean
-          在css进行处理-->
           <el-form-item label="性别" prop="sex" class="select-clean">
-            <el-select v-model="formUser.sex" placeholder="请选择">
+            <el-select
+              v-model="formUser.sex"
+              placeholder="请选择"
+              style="width: 194px"
+            >
               <el-option label="男" value="1"></el-option>
               <el-option label="女" value="0"></el-option>
             </el-select>
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="出生日期" prop="birth">
+          <el-form-item label="籍贯" prop="nativePlace">
+            <el-input
+              v-model="formUser.nativePlace"
+              placeholder="请输入籍贯"
+            ></el-input>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row>
+        <el-col :span="12">
+          <el-form-item label="适任证书有效期至" prop="competencyExpiry">
             <el-date-picker
-              v-model="formUser.birth"
+              v-model="formUser.competencyExpiry"
               type="date"
-              placeholder="请输入"
+              placeholder="请选择日期"
+              style="width: 100%"
+            ></el-date-picker>
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="培训证书有效期至" prop="trainingExpiry">
+            <el-date-picker
+              v-model="formUser.trainingExpiry"
+              type="date"
+              placeholder="请选择日期"
               style="width: 100%"
             ></el-date-picker>
           </el-form-item>
         </el-col>
       </el-row>
       <el-row>
-        <el-form-item label="地址" prop="addr">
-          <el-input v-model="formUser.addr" placeholder="请输入地址"></el-input
-        ></el-form-item>
+        <el-col :span="12">
+          <el-form-item label="手机号码" prop="phone">
+            <el-input
+              v-model="formUser.phone"
+              placeholder="请输入手机号码"
+            ></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="健康证书有效期至" prop="healthExpiry">
+            <el-date-picker
+              v-model="formUser.healthExpiry"
+              type="date"
+              placeholder="请选择日期"
+              style="width: 100%"
+            ></el-date-picker>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row>
+        <el-col :span="24">
+          <el-form-item label="等级与职务" prop="rankLevel">
+            <el-input
+              v-model="formUser.rankLevel"
+              type="input"
+              style="width:630px"
+              placeholder="请输入等级与职务"
+            ></el-input>
+          </el-form-item>
+        </el-col>
       </el-row>
       <el-row style="justify-content: flex-end">
         <el-form-item>
@@ -330,5 +430,22 @@ onMounted(() => {
 }
 .select-clean {
   display: flex;
+}
+// 等级与职务列内容自动换行，避免被截断
+:deep(.multi-line-cell .cell) {
+  white-space: normal;
+  line-height: 1.4;
+}
+// 弹窗表单 - 让 form-item 占满 col 宽度，避免 inline-block 自适应过窄
+:deep(.crew-form .el-form-item) {
+  width: 100%;
+}
+// form-item content 占满 form-item（label 之外的部分）
+:deep(.crew-form .el-form-item__content) {
+  width: 100%;
+}
+// 等级与职务等 el-input 的可见输入框占满 col
+:deep(.crew-form .el-input__wrapper) {
+  width: 100%;
 }
 </style>

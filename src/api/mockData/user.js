@@ -44,7 +44,7 @@ export default {
     const { name, page = 1, limit = 10 } = param2Obj(config.url)
 
     const mockList = List.filter((user) => {
-      //如果name存在会，根据name筛选数据
+      //如果name存在会根据name筛选数据
       if (name && user.name.indexOf(name) === -1) return false
       return true
     })
