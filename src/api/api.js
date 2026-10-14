@@ -1,4 +1,4 @@
-﻿/* 
+/* 
 整个项目api的统一管理 
 */
 import request from './request.js'
@@ -55,6 +55,13 @@ export default {
       url: '/user/updateUser',
       method: 'POST',
       data
+    })
+  },
+  // 获取船员证书到期仪表盘数据
+  getUserStatusList() {
+    return request({
+      url: '/user/getUserStatusList',
+      method: 'GET'
     })
   },
   // 根据不同登录账户获取不同的菜单

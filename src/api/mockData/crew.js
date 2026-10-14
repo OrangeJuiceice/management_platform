@@ -44,14 +44,58 @@ const rankLevels = [
   '主推进动力装置750千瓦及以上船舶的值班机工'
 ]
 
-function futureDate() {
+// 预设船名列表（模拟一个中型船公司的船队）
+const shipNames = [
+  '华祥海号',
+  '远洋之星',
+  '海洋1号',
+  '华海168',
+  '新华阳号',
+  '振华8号',
+  '远航者',
+  '华洋200',
+  '中海9号',
+  '东方之星',
+  '远洋168',
+  '蓝海号'
+]
+
+// 生成随机证书到期日期，覆盖 4 种状态：
+// 20% 过期（过去 2 年内）/ 10% 临期（0-30 天）/ 20% 待续期（30-90 天）/ 50% 有效（90 天-5 年）
+function randomExpiryDate() {
   const now = new Date()
-  const offsetDays = Math.floor(Math.random() * 5 * 365) + 1
+  const rand = Math.random()
+  let offsetDays
+  if (rand < 0.2) {
+    // 过期：过去 2 年内
+    offsetDays = -(Math.floor(Math.random() * 2 * 365) + 1)
+  } else if (rand < 0.3) {
+    // 临期：未来 0-30 天
+    offsetDays = Math.floor(Math.random() * 30)
+  } else if (rand < 0.5) {
+    // 待续期：未来 30-90 天
+    offsetDays = 30 + Math.floor(Math.random() * 61)
+  } else {
+    // 有效：未来 90 天-5 年
+    offsetDays = 90 + Math.floor(Math.random() * (5 * 365 - 90))
+  }
   const d = new Date(now.getTime() + offsetDays * 24 * 60 * 60 * 1000)
   const year = d.getFullYear()
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+// 判断单个证书日期的状态
+// 返回 'expired'（过期）/'urgent'（临期）/ null（待续期/有效，不显示）
+function checkExpiry(dateStr, today) {
+  if (!dateStr) return null
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const target = new Date(y, m - 1, d)
+  const diffDays = Math.floor((target - today) / (24 * 60 * 60 * 1000))
+  if (diffDays < 0) return 'expired'
+  if (diffDays < 30) return 'urgent'
+  return null
 }
 
 function generatePhone() {
@@ -73,11 +117,12 @@ for (let i = 0; i < count; i++) {
       position: positions[Math.floor(Math.random() * positions.length)],
       sex: Mock.Random.integer(0, 1),
       nativePlace: Mock.mock('@city(true)'),
-      competencyExpiry: futureDate(),
+      ship: shipNames[Math.floor(Math.random() * shipNames.length)],
+      competencyExpiry: randomExpiryDate(),
       rankLevel: rankLevels[Math.floor(Math.random() * rankLevels.length)],
       phone: generatePhone(),
-      trainingExpiry: futureDate(),
-      healthExpiry: futureDate()
+      trainingExpiry: randomExpiryDate(),
+      healthExpiry: randomExpiryDate()
     })
   )
 }
@@ -125,6 +170,7 @@ export default {
       position,
       sex,
       nativePlace,
+      ship,
       competencyExpiry,
       rankLevel,
       phone,
@@ -137,6 +183,7 @@ export default {
       position: position,
       sex: sex,
       nativePlace: nativePlace,
+      ship: ship,
       competencyExpiry: competencyExpiry,
       rankLevel: rankLevel,
       phone: phone,
@@ -158,6 +205,7 @@ export default {
       position,
       sex,
       nativePlace,
+      ship,
       competencyExpiry,
       rankLevel,
       phone,
@@ -171,6 +219,7 @@ export default {
         u.position = position
         u.sex = sex_num
         u.nativePlace = nativePlace
+        u.ship = ship
         u.competencyExpiry = competencyExpiry
         u.rankLevel = rankLevel
         u.phone = phone
@@ -183,6 +232,64 @@ export default {
       code: 200,
       data: {
         message: '编辑成功'
+      }
+    }
+  },
+
+  // 获取仪表盘数据：3 个证书各自的过期/临期船员列表
+  getStatusList: () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const competencyExpired = [] // 适任证书过期/临期
+    const trainingExpired = [] // 培训证书过期/临期
+    const healthExpired = [] // 健康证书过期/临期
+
+    List.forEach((crew) => {
+      // 检查适任证书
+      const competencyStatus = checkExpiry(crew.competencyExpiry, today)
+      if (competencyStatus) {
+        competencyExpired.push({
+          id: crew.id,
+          name: crew.name,
+          position: crew.position,
+          ship: crew.ship,
+          expiryDate: crew.competencyExpiry,
+          status: competencyStatus
+        })
+      }
+      // 检查培训证书
+      const trainingStatus = checkExpiry(crew.trainingExpiry, today)
+      if (trainingStatus) {
+        trainingExpired.push({
+          id: crew.id,
+          name: crew.name,
+          position: crew.position,
+          ship: crew.ship,
+          expiryDate: crew.trainingExpiry,
+          status: trainingStatus
+        })
+      }
+      // 检查健康证书
+      const healthStatus = checkExpiry(crew.healthExpiry, today)
+      if (healthStatus) {
+        healthExpired.push({
+          id: crew.id,
+          name: crew.name,
+          position: crew.position,
+          ship: crew.ship,
+          expiryDate: crew.healthExpiry,
+          status: healthStatus
+        })
+      }
+    })
+
+    return {
+      code: 200,
+      data: {
+        competencyExpired,
+        trainingExpired,
+        healthExpired
       }
     }
   }

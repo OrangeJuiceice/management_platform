@@ -1,124 +1,42 @@
 <script setup>
-import {
-  ref,
-  shallowRef,
-  getCurrentInstance,
-  onMounted,
-  onUnmounted
-} from 'vue'
-import * as echarts from 'echarts'
-import { xOptions, pieOptions } from '@/utils/echarts'
+import { ref, getCurrentInstance, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 const { proxy } = getCurrentInstance()
+const router = useRouter()
 
 const getImageUrl = (user) => {
   return new URL(`../assets/images/${user}.png`, import.meta.url).href
 }
-const tableData = ref([])
 const countData = ref([])
-const orderEchartRef = shallowRef(null)
-const userEchartRef = shallowRef(null)
-const videoEchartRef = shallowRef(null)
-const resizeObserver = shallowRef(null)
-let disposed = false
 
-const tableLabel = ref({
-  name: '课程',
-  todayBuy: '今日购买',
-  monthBuy: '本月购买',
-  totalBuy: '总购买'
-})
+// 三个证书的过期/临期船员列表
+const competencyList = ref([]) // 适任证书
+const trainingList = ref([]) // 培训证书
+const healthList = ref([]) // 健康证书
 
-// 获取课程购买统计数据
-const getTableData = async () => {
-  const data = await proxy.$api.getTableData()
-  // console.log(data)
-  tableData.value = data.tableData
-}
-// 获取订单统计数据
+// 获取订单统计数据（保留原 count 卡片）
 const getCountData = async () => {
   const data = await proxy.$api.getCountData()
-  // console.log(data)
   countData.value = data
 }
-// 获取并渲染所有图表数据
-const getChartData = async () => {
-  const { orderData, userData, videoData } = await proxy.$api.getChartData()
-  if (disposed) return
-  // 对订单统计数据进行x轴和series配置
-  xOptions.xAxis.data = orderData.date
-  xOptions.series = Object.keys(orderData.data[0]).map((key) => ({
-    name: key,
-    type: 'line',
-    data: orderData.data.map((item) => item[key])
-  }))
-  // 初始化订单统计数据图表
-  orderEchartRef.value = echarts.init(proxy.$refs.orderChartRef)
-  // 渲染图表
-  orderEchartRef.value.setOption(xOptions)
-  if (disposed) return
+// 获取船员证书到期仪表盘数据
+const getStatusList = async () => {
+  const res = await proxy.$api.getUserStatusList()
+  console.log(res)
 
-  // 对用户统计数据进行x轴和series配置
-  xOptions.xAxis.data = userData.map((item) => item.date)
-  xOptions.series = [
-    {
-      name: '新增用户',
-      type: 'bar',
-      data: userData.map((item) => item.new)
-    },
-    {
-      name: '活跃用户',
-      type: 'bar',
-      data: userData.map((item) => item.active)
-    }
-  ]
-  // 初始化用户统计数据图表
-  userEchartRef.value = echarts.init(proxy.$refs.userChartRef)
-  // 渲染图表
-  userEchartRef.value.setOption(xOptions)
-  if (disposed) return
-
-  // 对视频统计数据进行饼状图配置
-  pieOptions.series = {
-    data: videoData,
-    type: 'pie'
-  }
-  // 初始化视频统计数据图表
-  videoEchartRef.value = echarts.init(proxy.$refs.videoChartRef)
-  // 渲染图表
-  videoEchartRef.value.setOption(pieOptions)
-  if (disposed) return
-
-  // 监听页面的变化
-  // 如果监听的容器大小发生变化，改变之后，会执行回调函数，重新渲染图表，保持图表的自适应性
-  resizeObserver.value = new ResizeObserver(() => {
-    orderEchartRef.value?.resize()
-    userEchartRef.value?.resize()
-    videoEchartRef.value?.resize()
-  })
-
-  // 容器存在
-  if (proxy.$refs.orderChartRef) {
-    resizeObserver.value.observe(proxy.$refs.orderChartRef)
-  }
+  competencyList.value = res.competencyExpired || []
+  trainingList.value = res.trainingExpired || []
+  healthList.value = res.healthExpired || []
+}
+// 跳转到船员管理页面
+const goToUser = () => {
+  router.push('/user')
 }
 
-onUnmounted(() => {
-  disposed = true
-  resizeObserver.value?.disconnect()
-  resizeObserver.value = null
-  orderEchartRef.value?.dispose()
-  userEchartRef.value?.dispose()
-  videoEchartRef.value?.dispose()
-  orderEchartRef.value = null
-  userEchartRef.value = null
-  videoEchartRef.value = null
-})
-
 onMounted(() => {
-  getTableData()
   getCountData()
-  getChartData()
+  getStatusList()
 })
 </script>
 
@@ -140,16 +58,43 @@ onMounted(() => {
           <p>上次登录地点：<span>中国 北京</span></p>
         </div>
       </el-card>
-      <!-- 课程购买统计卡片 -->
-      <el-card class="table" shadow="hover">
-        <el-table :data="tableData">
-          <el-table-column
-            v-for="(val, key) in tableLabel"
-            :key="key"
-            :label="val"
-            :prop="key"
-          ></el-table-column>
-        </el-table>
+      <!-- 健康证书过期/临期列表 -->
+      <el-card
+        class="status-card health-card"
+        shadow="hover"
+        style="margin-top: 20px"
+      >
+        <template #header>
+          <div class="card-header">
+            <span class="title">健康证书 - 过期/临期</span>
+            <span class="count">共 {{ healthList.length }} 条</span>
+          </div>
+        </template>
+        <div class="crew-list">
+          <div
+            v-for="crew in healthList.slice(0, 10)"
+            :key="crew.id"
+            class="crew-item"
+            @click="goToUser"
+          >
+            <div class="crew-info">
+              <span class="name">{{ crew.name }}</span>
+              <span class="meta">{{ crew.position }} / {{ crew.ship }}</span>
+            </div>
+            <div class="crew-expiry">
+              <span class="date">{{ crew.expiryDate }}</span>
+              <span class="status-tag" :class="crew.status">
+                {{ crew.status === 'expired' ? '过期' : '临期' }}
+              </span>
+            </div>
+          </div>
+          <div v-if="healthList.length === 0" class="empty">
+            暂无过期/临期船员
+          </div>
+          <div v-if="healthList.length > 10" class="view-all" @click="goToUser">
+            查看全部 {{ healthList.length }} 条 →
+          </div>
+        </div>
       </el-card>
     </el-col>
     <!-- 右侧 -->
@@ -172,21 +117,89 @@ onMounted(() => {
           </div>
         </el-card>
       </div>
-      <!-- 订单统计图表 -->
-      <el-card class="top-echart">
-        <div ref="orderChartRef" style="height: 280px"></div>
+      <!-- 适任证书过期/临期列表 -->
+      <el-card class="status-card competency-card">
+        <template #header>
+          <div class="card-header">
+            <span class="title">适任证书 - 过期/临期</span>
+            <span class="count">共 {{ competencyList.length }} 条</span>
+          </div>
+        </template>
+        <div class="crew-list">
+          <div
+            v-for="crew in competencyList.slice(0, 10)"
+            :key="crew.id"
+            class="crew-item"
+            @click="goToUser"
+          >
+            <div class="crew-info">
+              <span class="name">{{ crew.name }}</span>
+              <span class="meta">{{ crew.position }} / {{ crew.ship }}</span>
+            </div>
+            <div class="crew-expiry">
+              <span class="date">{{ crew.expiryDate }}</span>
+              <span class="status-tag" :class="crew.status">
+                {{ crew.status === 'expired' ? '过期' : '临期' }}
+              </span>
+            </div>
+          </div>
+          <div v-if="competencyList.length === 0" class="empty">
+            暂无过期/临期船员
+          </div>
+          <div
+            v-if="competencyList.length > 10"
+            class="view-all"
+            @click="goToUser"
+          >
+            查看全部 {{ competencyList.length }} 条 →
+          </div>
+        </div>
       </el-card>
 
-      <div class="graph">
-        <!-- 用户统计卡片 -->
-        <el-card>
-          <div ref="userChartRef" style="height: 240px"></div>
-        </el-card>
-        <!-- 视频统计卡片 -->
-        <el-card>
-          <div ref="videoChartRef" style="height: 240px"></div>
-        </el-card>
-      </div>
+      <!-- 培训证书过期/临期列表已移到下方跨行显示 -->
+    </el-col>
+  </el-row>
+
+  <!-- 培训证书跨左右整行 -->
+  <el-row class="home" :gutter="20" style="margin-top: 5px">
+    <el-col :span="24">
+      <el-card class="status-card training-card">
+        <template #header>
+          <div class="card-header">
+            <span class="title">培训证书 - 过期/临期</span>
+            <span class="count">共 {{ trainingList.length }} 条</span>
+          </div>
+        </template>
+        <div class="crew-list">
+          <div
+            v-for="crew in trainingList.slice(0, 10)"
+            :key="crew.id"
+            class="crew-item"
+            @click="goToUser"
+          >
+            <div class="crew-info">
+              <span class="name">{{ crew.name }}</span>
+              <span class="meta">{{ crew.position }} / {{ crew.ship }}</span>
+            </div>
+            <div class="crew-expiry">
+              <span class="date">{{ crew.expiryDate }}</span>
+              <span class="status-tag" :class="crew.status">
+                {{ crew.status === 'expired' ? '过期' : '临期' }}
+              </span>
+            </div>
+          </div>
+          <div v-if="trainingList.length === 0" class="empty">
+            暂无过期/临期船员
+          </div>
+          <div
+            v-if="trainingList.length > 10"
+            class="view-all"
+            @click="goToUser"
+          >
+            查看全部 {{ trainingList.length }} 条 →
+          </div>
+        </div>
+      </el-card>
     </el-col>
   </el-row>
 </template>
@@ -228,9 +241,6 @@ onMounted(() => {
       margin-left: 60px;
     }
   }
-  .table {
-    margin-top: 20px;
-  }
   .order {
     display: flex;
     flex-wrap: wrap;
@@ -242,9 +252,6 @@ onMounted(() => {
     .icons {
       width: 80px;
       height: 80px;
-      // font-size: 30px;
-      // text-align: center;
-      // line-height: 80px;
       color: #fff;
     }
     .detail {
@@ -264,11 +271,116 @@ onMounted(() => {
       }
     }
   }
-  .graph {
-    display: flex;
-    justify-content: space-between;
-    .el-card {
-      width: 48%;
+  // 证书状态卡片
+  .status-card {
+    margin-bottom: 20px;
+    width: 100%;
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      .title {
+        font-size: 16px;
+        font-weight: bold;
+      }
+      .count {
+        font-size: 13px;
+        color: #999;
+      }
+    }
+    &.competency-card {
+      :deep(.el-card__header) {
+        background: #e3f2fd;
+        color: #1565c0;
+      }
+    }
+    &.training-card {
+      :deep(.el-card__header) {
+        background: #f3e5f5;
+        color: #6a1b9a;
+      }
+    }
+    &.health-card {
+      :deep(.el-card__header) {
+        background: #e8f5e9;
+        color: #2e7d32;
+      }
+    }
+  }
+  // 船员列表
+  .crew-list {
+    .crew-item {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.2s;
+      &:hover {
+        background: #f5f7fa;
+      }
+      &:last-child {
+        border-bottom: none;
+      }
+      .crew-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        .name {
+          font-size: 14px;
+          font-weight: 500;
+          color: #303133;
+        }
+        .meta {
+          font-size: 12px;
+          color: #909399;
+        }
+      }
+      .crew-expiry {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+        .date {
+          font-size: 13px;
+          color: #606266;
+        }
+      }
+    }
+    .empty {
+      padding: 24px;
+      text-align: center;
+      color: #909399;
+      font-size: 14px;
+    }
+    .view-all {
+      padding: 10px 12px;
+      text-align: center;
+      color: #409eff;
+      font-size: 13px;
+      cursor: pointer;
+      &:hover {
+        background: #f5f7fa;
+      }
+    }
+  }
+  // 状态标签（红=过期 / 橙=临期）
+  .status-tag {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    &.expired {
+      background: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+    &.urgent {
+      background: #fff3e0;
+      color: #ef6c00;
+      border: 1px solid #ffcc80;
     }
   }
 }

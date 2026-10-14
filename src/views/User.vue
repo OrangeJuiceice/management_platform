@@ -5,6 +5,22 @@ const tableData = ref([])
 const { proxy } = getCurrentInstance()
 
 // 请求用户列表数据
+// 计算日期状态：返回状态类名和文案
+// 状态分档：>90天有效 / 30~90天即将过期 / 0~30天紧急 / <0天已过期
+const getDateStatus = (dateStr) => {
+  if (!dateStr) return { className: 'expired', label: '无日期' }
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const target = new Date(y, m - 1, d)
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const diffDays = Math.floor((target - now) / (24 * 60 * 60 * 1000))
+
+  if (diffDays < 0) return { className: 'expired', label: '已过期' }
+  if (diffDays < 30) return { className: 'urgent', label: '临期' }
+  if (diffDays <= 90) return { className: 'warning', label: '待续期' }
+  return { className: 'valid', label: '有效' }
+}
+
 const getUserData = async () => {
   const res = await proxy.$api.getUserData(config)
   // 处理性别数据
@@ -22,48 +38,53 @@ const tableLable = reactive([
   {
     prop: 'name',
     label: '姓名',
-    width: '90'
+    width: '70'
   },
   {
     prop: 'position',
     label: '职务',
-    width: '90'
+    width: '70'
   },
   {
     prop: 'sexLable',
     label: '性别',
-    width: '70'
+    width: '50'
   },
   {
     prop: 'nativePlace',
     label: '籍贯',
-    width: '150'
+    width: '120'
+  },
+  {
+    prop: 'ship',
+    label: '所属船只',
+    width: '110'
   },
   {
     prop: 'competencyExpiry',
     label: '适任证书有效期至',
-    width: '150'
+    width: '180'
   },
   {
     prop: 'rankLevel',
     label: '等级与职务',
-    width: '280',
+    width: '200',
     className: 'multi-line-cell'
   },
   {
     prop: 'phone',
     label: '手机号码',
-    width: '130'
+    width: '110'
   },
   {
     prop: 'trainingExpiry',
     label: '海船船员培训证书有效期至',
-    width: '170'
+    width: '180'
   },
   {
     prop: 'healthExpiry',
     label: '海船船员健康证书有效期至',
-    width: '170'
+    width: '180'
   }
 ])
 
@@ -119,6 +140,7 @@ const formUser = reactive({
   position: '',
   sex: '',
   nativePlace: '',
+  ship: '',
   competencyExpiry: '',
   rankLevel: '',
   phone: '',
@@ -132,6 +154,7 @@ const rules = reactive({
   position: [{ required: true, message: '请输入职务', trigger: 'blur' }],
   sex: [{ required: true, message: '请选择性别', trigger: 'change' }],
   nativePlace: [{ required: true, message: '请输入籍贯', trigger: 'blur' }],
+  ship: [{ required: true, message: '请输入所属船只', trigger: 'blur' }],
   competencyExpiry: [
     { required: true, message: '请选择日期', trigger: 'change' }
   ],
@@ -266,7 +289,28 @@ onMounted(() => {
         :prop="item.prop"
         :width="item.width ? item.width : '125'"
         :class-name="item.className || ''"
-      />
+      >
+        <template #default="scope">
+          <!-- 3 个日期字段：显示日期 + 状态标签 -->
+          <span
+            v-if="
+              ['competencyExpiry', 'trainingExpiry', 'healthExpiry'].includes(
+                item.prop
+              )
+            "
+          >
+            <span>{{ scope.row[item.prop] }}</span>
+            <span
+              class="status-tag"
+              :class="getDateStatus(scope.row[item.prop]).className"
+            >
+              {{ getDateStatus(scope.row[item.prop]).label }}
+            </span>
+          </span>
+          <!-- 其他字段：默认显示 -->
+          <span v-else>{{ scope.row[item.prop] }}</span>
+        </template>
+      </el-table-column>
       <el-table-column fixed="right" label="Operations" min-width="120">
         <template #default="scope">
           <el-button type="primary" size="small" @click="handleEdit(scope.row)">
@@ -344,6 +388,24 @@ onMounted(() => {
       </el-row>
       <el-row>
         <el-col :span="12">
+          <el-form-item label="所属船只" prop="ship">
+            <el-input
+              v-model="formUser.ship"
+              placeholder="请输入所属船只"
+            ></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="手机号码" prop="phone">
+            <el-input
+              v-model="formUser.phone"
+              placeholder="请输入手机号码"
+            ></el-input>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row>
+        <el-col :span="12">
           <el-form-item label="适任证书有效期至" prop="competencyExpiry">
             <el-date-picker
               v-model="formUser.competencyExpiry"
@@ -366,14 +428,6 @@ onMounted(() => {
       </el-row>
       <el-row>
         <el-col :span="12">
-          <el-form-item label="手机号码" prop="phone">
-            <el-input
-              v-model="formUser.phone"
-              placeholder="请输入手机号码"
-            ></el-input>
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
           <el-form-item label="健康证书有效期至" prop="healthExpiry">
             <el-date-picker
               v-model="formUser.healthExpiry"
@@ -390,7 +444,7 @@ onMounted(() => {
             <el-input
               v-model="formUser.rankLevel"
               type="input"
-              style="width:630px"
+              style="width: 630px"
               placeholder="请输入等级与职务"
             ></el-input>
           </el-form-item>
@@ -447,5 +501,37 @@ onMounted(() => {
 // 等级与职务等 el-input 的可见输入框占满 col
 :deep(.crew-form .el-input__wrapper) {
   width: 100%;
+}
+// 日期状态标签
+.status-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  margin-left: 6px;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  vertical-align: middle;
+
+  &.valid {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #a5d6a7;
+  }
+  &.warning {
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #90caf9;
+  }
+  &.urgent {
+    background: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ffcc80;
+  }
+  &.expired {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+  }
 }
 </style>
