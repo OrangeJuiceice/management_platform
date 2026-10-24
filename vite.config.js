@@ -11,6 +11,8 @@ import IconsResolver from 'unplugin-icons/resolver'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages 等静态托管部署在子路径下时，用相对路径引用资源，避免 main.js 等 404
+  base: './',
   plugins: [
     vue(),
     vueDevTools(),
