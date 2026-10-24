@@ -16,6 +16,8 @@ const handleMenu = (tag) => {
   // 调用store中的selectMenu方法
   allDataStore.selectMenu(tag)
   // 切换路由
+  // 排除掉有子菜单项的标签
+  // if (tag.children) return
   router.push(tag.name)
 }
 // 删除标签事件

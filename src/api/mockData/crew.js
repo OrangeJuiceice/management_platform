@@ -87,14 +87,17 @@ function randomExpiryDate() {
 }
 
 // 判断单个证书日期的状态
-// 返回 'expired'（过期）/'urgent'（临期）/ null（待续期/有效，不显示）
-function checkExpiry(dateStr, today) {
+// includeWarning=false（默认）：只返回 'expired'/'urgent'/null（用于卡片显示，warning 不显示）
+// includeWarning=true：返回 'expired'/'urgent'/'warning'/null（用于统计）
+function getExpiryStatus(dateStr, today, includeWarning = false) {
   if (!dateStr) return null
   const [y, m, d] = dateStr.split('-').map(Number)
   const target = new Date(y, m - 1, d)
   const diffDays = Math.floor((target - today) / (24 * 60 * 60 * 1000))
   if (diffDays < 0) return 'expired'
   if (diffDays < 30) return 'urgent'
+  if (!includeWarning) return null
+  if (diffDays <= 90) return 'warning'
   return null
 }
 
@@ -129,10 +132,47 @@ for (let i = 0; i < count; i++) {
 
 export default {
   getUserList: (config) => {
-    const { name, page = 1, limit = 10 } = param2Obj(config.url)
+    const {
+      name,
+      ship,
+      page = 1,
+      limit = 10,
+      certType,
+      status
+    } = param2Obj(config.url)
+
+    // 证书字段映射
+    const fieldMap = {
+      competency: 'competencyExpiry',
+      training: 'trainingExpiry',
+      health: 'healthExpiry'
+    }
+
+    // 准备 today（避免循环里重复创建）
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
     const mockList = List.filter((crew) => {
+      // 姓名模糊匹配
       if (name && crew.name.indexOf(name) === -1) return false
+      // 船只模糊匹配
+      if (ship && crew.ship.indexOf(ship) === -1) return false
+
+      // 证书状态过滤（只有 certType + status 都填写时才生效）
+      if (certType && status) {
+        const field = fieldMap[certType]
+        if (!field) return false // 未知证书类型，过滤掉
+        const expiryStatus = getExpiryStatus(crew[field], today, true)
+
+        if (status === 'expiring') {
+          // 过期 + 临期
+          if (expiryStatus !== 'expired' && expiryStatus !== 'urgent')
+            return false
+        } else if (expiryStatus !== status) {
+          // 单状态精确匹配
+          return false
+        }
+      }
       return true
     })
     const pageList = mockList.filter(
@@ -236,7 +276,7 @@ export default {
     }
   },
 
-  // 获取仪表盘数据：3 个证书各自的过期/临期船员列表
+  // 获取仪表盘数据：3 个证书各自的过期/临期船员列表 + 统计数据
   getStatusList: () => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -244,10 +284,11 @@ export default {
     const competencyExpired = [] // 适任证书过期/临期
     const trainingExpired = [] // 培训证书过期/临期
     const healthExpired = [] // 健康证书过期/临期
+    const stats = { total: List.length, expired: 0, urgent: 0, warning: 0 }
 
     List.forEach((crew) => {
-      // 检查适任证书
-      const competencyStatus = checkExpiry(crew.competencyExpiry, today)
+      // 适任证书
+      const competencyStatus = getExpiryStatus(crew.competencyExpiry, today)
       if (competencyStatus) {
         competencyExpired.push({
           id: crew.id,
@@ -258,8 +299,13 @@ export default {
           status: competencyStatus
         })
       }
-      // 检查培训证书
-      const trainingStatus = checkExpiry(crew.trainingExpiry, today)
+      const competencyFull = getExpiryStatus(crew.competencyExpiry, today, true)
+      if (competencyFull === 'expired') stats.expired++
+      else if (competencyFull === 'urgent') stats.urgent++
+      else if (competencyFull === 'warning') stats.warning++
+
+      // 培训证书
+      const trainingStatus = getExpiryStatus(crew.trainingExpiry, today)
       if (trainingStatus) {
         trainingExpired.push({
           id: crew.id,
@@ -270,8 +316,13 @@ export default {
           status: trainingStatus
         })
       }
-      // 检查健康证书
-      const healthStatus = checkExpiry(crew.healthExpiry, today)
+      const trainingFull = getExpiryStatus(crew.trainingExpiry, today, true)
+      if (trainingFull === 'expired') stats.expired++
+      else if (trainingFull === 'urgent') stats.urgent++
+      else if (trainingFull === 'warning') stats.warning++
+
+      // 健康证书
+      const healthStatus = getExpiryStatus(crew.healthExpiry, today)
       if (healthStatus) {
         healthExpired.push({
           id: crew.id,
@@ -282,6 +333,10 @@ export default {
           status: healthStatus
         })
       }
+      const healthFull = getExpiryStatus(crew.healthExpiry, today, true)
+      if (healthFull === 'expired') stats.expired++
+      else if (healthFull === 'urgent') stats.urgent++
+      else if (healthFull === 'warning') stats.warning++
     })
 
     return {
@@ -289,7 +344,8 @@ export default {
       data: {
         competencyExpired,
         trainingExpired,
-        healthExpired
+        healthExpired,
+        stats
       }
     }
   }

@@ -1,69 +1,111 @@
 <script setup>
-import { ref, getCurrentInstance, onMounted } from 'vue'
+import { ref, computed, getCurrentInstance, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import {
+  User,
+  CircleCloseFilled,
+  WarningFilled,
+  BellFilled
+} from '@element-plus/icons-vue'
 
 const { proxy } = getCurrentInstance()
 const router = useRouter()
 
-const getImageUrl = (user) => {
-  return new URL(`../assets/images/${user}.png`, import.meta.url).href
-}
-const countData = ref([])
+// 船员统计数据
+const stats = ref({
+  total: 0,
+  expired: 0,
+  urgent: 0,
+  warning: 0
+})
 
 // 三个证书的过期/临期船员列表
 const competencyList = ref([]) // 适任证书
 const trainingList = ref([]) // 培训证书
 const healthList = ref([]) // 健康证书
 
-// 获取订单统计数据（保留原 count 卡片）
-const getCountData = async () => {
-  const data = await proxy.$api.getCountData()
-  countData.value = data
-}
+// 船员统计卡片配置
+const statsCards = computed(() => [
+  {
+    name: '船员总数',
+    value: stats.value.total,
+    icon: User,
+    color: '#409eff'
+  },
+  {
+    name: '过期证书',
+    value: stats.value.expired,
+    icon: CircleCloseFilled,
+    color: '#f56c6c'
+  },
+  {
+    name: '临期证书',
+    value: stats.value.urgent,
+    icon: WarningFilled,
+    color: '#e6a23c'
+  },
+  {
+    name: '待续期证书',
+    value: stats.value.warning,
+    icon: BellFilled,
+    color: '#409eff'
+  }
+])
+
 // 获取船员证书到期仪表盘数据
 const getStatusList = async () => {
   const res = await proxy.$api.getUserStatusList()
-  console.log(res)
 
   competencyList.value = res.competencyExpired || []
   trainingList.value = res.trainingExpired || []
   healthList.value = res.healthExpired || []
+  stats.value = res.stats || { total: 0, expired: 0, urgent: 0, warning: 0 }
 }
 // 跳转到船员管理页面
-const goToUser = () => {
-  router.push('/user')
+// - name: 按姓名搜索该船员
+// - certType + status: 按证书状态过滤（certType: competency/training/health，status: expiring/expired/urgent）
+const goToUser = ({ name, certType, status } = {}) => {
+  const query = {}
+  if (name) query.name = name
+  if (certType) query.certType = certType
+  if (status) query.status = status
+  router.push({ path: '/user', query })
 }
 
 onMounted(() => {
-  getCountData()
   getStatusList()
 })
 </script>
 
 <template>
   <el-row class="home" :gutter="20">
-    <!-- 左侧 -->
-    <el-col :span="8" style="margin-top: 20px">
-      <!-- 用户信息卡片 -->
-      <el-card shadow="hover">
-        <div class="user">
-          <img :src="getImageUrl('user')" />
-          <div class="user-info">
-            <p class="username">Admin</p>
-            <p class="role">超级管理员</p>
+    <el-col :span="24">
+      <!-- 船员统计卡片 -->
+      <div class="order">
+        <el-card
+          :body-style="{ display: 'flex', padding: 0 }"
+          v-for="item in statsCards"
+          :key="item.name"
+        >
+          <component
+            :is="item.icon"
+            class="icons"
+            :style="{ background: item.color }"
+          ></component>
+          <div class="detail">
+            <p class="num">{{ item.value }}</p>
+            <p class="txt">{{ item.name }}</p>
           </div>
-        </div>
-        <div class="login-info">
-          <p>登录时间：<span>2023-08-01 10:00:00</span></p>
-          <p>上次登录地点：<span>中国 北京</span></p>
-        </div>
-      </el-card>
+        </el-card>
+      </div>
+    </el-col>
+  </el-row>
+
+  <el-row class="home" :gutter="20">
+    <!-- 左侧 -->
+    <el-col :span="12" style="margin-top: 5px">
       <!-- 健康证书过期/临期列表 -->
-      <el-card
-        class="status-card health-card"
-        shadow="hover"
-        style="margin-top: 20px"
-      >
+      <el-card class="status-card health-card" shadow="hover">
         <template #header>
           <div class="card-header">
             <span class="title">健康证书 - 过期/临期</span>
@@ -75,7 +117,7 @@ onMounted(() => {
             v-for="crew in healthList.slice(0, 10)"
             :key="crew.id"
             class="crew-item"
-            @click="goToUser"
+            @click="goToUser({ name: crew.name })"
           >
             <div class="crew-info">
               <span class="name">{{ crew.name }}</span>
@@ -91,32 +133,18 @@ onMounted(() => {
           <div v-if="healthList.length === 0" class="empty">
             暂无过期/临期船员
           </div>
-          <div v-if="healthList.length > 10" class="view-all" @click="goToUser">
+          <div
+            v-if="healthList.length > 10"
+            class="view-all"
+            @click="goToUser({ certType: 'health', status: 'expiring' })"
+          >
             查看全部 {{ healthList.length }} 条 →
           </div>
         </div>
       </el-card>
     </el-col>
     <!-- 右侧 -->
-    <el-col :span="16" style="margin-top: 20px">
-      <!-- 订单统计卡片 -->
-      <div class="order">
-        <el-card
-          :body-style="{ display: 'flex', padding: 0 }"
-          v-for="item in countData"
-          :key="item.name"
-        >
-          <component
-            :is="item.icon"
-            class="icons"
-            :style="{ background: item.color }"
-          ></component>
-          <div class="detail">
-            <p class="num">￥{{ item.value }}</p>
-            <p class="txt">{{ item.name }}</p>
-          </div>
-        </el-card>
-      </div>
+    <el-col :span="12" style="margin-top: 5px">
       <!-- 适任证书过期/临期列表 -->
       <el-card class="status-card competency-card">
         <template #header>
@@ -130,7 +158,7 @@ onMounted(() => {
             v-for="crew in competencyList.slice(0, 10)"
             :key="crew.id"
             class="crew-item"
-            @click="goToUser"
+            @click="goToUser({ name: crew.name })"
           >
             <div class="crew-info">
               <span class="name">{{ crew.name }}</span>
@@ -149,14 +177,12 @@ onMounted(() => {
           <div
             v-if="competencyList.length > 10"
             class="view-all"
-            @click="goToUser"
+            @click="goToUser({ certType: 'competency', status: 'expiring' })"
           >
             查看全部 {{ competencyList.length }} 条 →
           </div>
         </div>
       </el-card>
-
-      <!-- 培训证书过期/临期列表已移到下方跨行显示 -->
     </el-col>
   </el-row>
 
@@ -175,7 +201,7 @@ onMounted(() => {
             v-for="crew in trainingList.slice(0, 10)"
             :key="crew.id"
             class="crew-item"
-            @click="goToUser"
+            @click="goToUser({ name: crew.name })"
           >
             <div class="crew-info">
               <span class="name">{{ crew.name }}</span>
@@ -194,7 +220,7 @@ onMounted(() => {
           <div
             v-if="trainingList.length > 10"
             class="view-all"
-            @click="goToUser"
+            @click="goToUser({ certType: 'training', status: 'expiring' })"
           >
             查看全部 {{ trainingList.length }} 条 →
           </div>
@@ -246,7 +272,7 @@ onMounted(() => {
     flex-wrap: wrap;
     justify-content: space-between;
     .el-card {
-      width: 32%;
+      width: 24%;
       margin-bottom: 20px;
     }
     .icons {

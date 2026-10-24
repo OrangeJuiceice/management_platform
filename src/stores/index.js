@@ -18,6 +18,7 @@ function initState() {
     currentMenu: null,
     // 菜单列表
     menuList: [],
+    // token
     token: '',
     // 路由列表
     routeList: []

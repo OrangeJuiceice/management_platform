@@ -1,3 +1,3 @@
 <template>
-  <div>商品</div>
+  <div>船舶档案</div>
 </template>

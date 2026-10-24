@@ -1,5 +1,8 @@
 <script setup>
 import { ref, getCurrentInstance, onMounted, reactive, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
 
 const tableData = ref([])
 const { proxy } = getCurrentInstance()
@@ -48,7 +51,7 @@ const tableLable = reactive([
   {
     prop: 'sexLable',
     label: '性别',
-    width: '50'
+    width: '55'
   },
   {
     prop: 'nativePlace',
@@ -88,20 +91,59 @@ const tableLable = reactive([
   }
 ])
 
-// 搜索表单
+// 证书类型选项
+const certTypeOptions = [
+  { label: '适任证书', value: 'competency' },
+  { label: '培训证书', value: 'training' },
+  { label: '健康证书', value: 'health' }
+]
+
+// 证书状态选项
+const statusOptions = [
+  { label: '过期', value: 'expired' },
+  { label: '临期', value: 'urgent' },
+  { label: '待续期', value: 'warning' },
+  { label: '过期+临期', value: 'expiring' }
+]
+
+// 搜索表单（统一为一个，支持任意组合）
 const formInline = reactive({
-  keyWord: ''
+  name: '',
+  ship: '',
+  certType: '',
+  status: ''
 })
 
 // 搜索和分页配置
 const config = reactive({
   name: '',
+  ship: '',
+  certType: '',
+  status: '',
   page: 1
 })
 
-// 搜索功能
+// 搜索功能（统一一个搜索按钮，支持任意组合条件）
 const handleSearch = () => {
-  config.name = formInline.keyWord
+  config.page = 1
+  config.name = formInline.name
+  config.ship = formInline.ship
+  config.certType = formInline.certType
+  config.status = formInline.status
+  getUserData(config)
+}
+
+// 重置搜索条件
+const handleReset = () => {
+  formInline.name = ''
+  formInline.ship = ''
+  formInline.certType = ''
+  formInline.status = ''
+  config.page = 1
+  config.name = ''
+  config.ship = ''
+  config.certType = ''
+  config.status = ''
   getUserData(config)
 }
 
@@ -259,7 +301,17 @@ const handleEdit = (row) => {
 }
 
 onMounted(() => {
-  getUserData()
+  const { name, ship, certType, status } = route.query
+  // 从首页跳转过来的筛选条件（姓名 / 证书类型 / 证书状态）
+  if (name || ship || certType || status) {
+    if (name) formInline.name = name
+    if (ship) formInline.ship = ship
+    if (certType) formInline.certType = certType
+    if (status) formInline.status = status
+    handleSearch()
+  } else {
+    getUserData()
+  }
 })
 </script>
 
@@ -267,15 +319,56 @@ onMounted(() => {
   <div class="user-header">
     <el-button type="primary" @click="handleAdd">新增</el-button>
     <!-- 搜索表单 -->
-    <el-form :inline="true" :model="formInline">
-      <el-form-item label="请输入">
+    <el-form :inline="true" :model="formInline" class="search-form">
+      <el-form-item label="姓名">
         <el-input
-          placeholder="请输入用户名"
-          v-model="formInline.keyWord"
+          placeholder="请输入姓名"
+          v-model="formInline.name"
+          clearable
+          style="width: 120px"
         ></el-input>
+      </el-form-item>
+      <el-form-item label="所属船只">
+        <el-input
+          placeholder="请输入船只"
+          v-model="formInline.ship"
+          clearable
+          style="width: 140px"
+        ></el-input>
+      </el-form-item>
+      <el-form-item label="证书类型">
+        <el-select
+          v-model="formInline.certType"
+          placeholder="全部"
+          clearable
+          style="width: 130px"
+        >
+          <el-option
+            v-for="opt in certTypeOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          ></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="证书状态">
+        <el-select
+          v-model="formInline.status"
+          placeholder="全部"
+          clearable
+          style="width: 130px"
+        >
+          <el-option
+            v-for="opt in statusOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          ></el-option>
+        </el-select>
       </el-form-item>
       <el-form-item>
         <el-button type="primary" @click="handleSearch">搜索</el-button>
+        <el-button @click="handleReset">重置</el-button>
       </el-form-item>
     </el-form>
   </div>

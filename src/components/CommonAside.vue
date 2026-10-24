@@ -52,7 +52,6 @@ const changeMenu = (item) => {
         v-for="item in hasChildren"
         :key="item.path"
         :index="item.path"
-        @click="changeMenu(item)"
       >
         <template #title>
           <el-icon><component :is="item.icon" class="icon" /></el-icon>
@@ -63,6 +62,7 @@ const changeMenu = (item) => {
             v-for="subItem in item.children"
             :key="subItem.path"
             :index="subItem.path"
+            @click="changeMenu(subItem)"
             ><el-icon><component :is="subItem.icon" class="icon" /></el-icon>
             <span>{{ subItem.label }}</span></el-menu-item
           >

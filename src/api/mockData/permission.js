@@ -21,14 +21,14 @@ export default {
             {
               path: '/mall',
               name: 'mall',
-              label: '商品管理',
+              label: '船舶档案',
               icon: 'video-play',
               url: 'Mall'
             },
             {
               path: '/user',
               name: 'user',
-              label: '用户管理',
+              label: '船员管理',
               icon: 'user',
               url: 'User'
             },
@@ -73,7 +73,7 @@ export default {
             {
               path: '/user',
               name: 'user',
-              label: '用户管理',
+              label: '船员管理',
               icon: 'user',
               url: 'User'
             }
