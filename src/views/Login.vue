@@ -19,6 +19,7 @@ const login = async () => {
   if (res) {
     allDataStore.updateMenuList(res.menuList)
     allDataStore.state.token = res.token
+    allDataStore.state.role = res.role
     // console.log(router.getRoutes())
     // 解决旧账号独有路由会"残留"的问题
     router.getRoutes().forEach((item) => {
@@ -34,7 +35,7 @@ const login = async () => {
 </script>
 <template>
   <div class="body-login">
-    <el-form :model="loginForm" class="login-container">
+    <el-form :model="loginForm" class="login-container" label-width="80px">
       <h1>欢迎登录</h1>
       <el-form-item label="用户名" prop="username">
         <el-input

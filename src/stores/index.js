@@ -20,6 +20,8 @@ function initState() {
     menuList: [],
     // token
     token: '',
+    // 用户角色：admin 管理员 / viewer 只读
+    role: '',
     // 路由列表
     routeList: []
   }

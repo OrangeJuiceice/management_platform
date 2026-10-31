@@ -1,8 +1,12 @@
 <script setup>
-import { ref, getCurrentInstance, onMounted, reactive, nextTick } from 'vue'
+import { ref, getCurrentInstance, onMounted, reactive, nextTick, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAllDataStore } from '@/stores/index.js'
 
 const route = useRoute()
+
+const allDataStore = useAllDataStore()
+const isAdmin = computed(() => allDataStore.state.role === 'admin')
 
 const tableData = ref([])
 const { proxy } = getCurrentInstance()
@@ -41,53 +45,53 @@ const tableLable = reactive([
   {
     prop: 'name',
     label: '姓名',
-    width: '70'
+    'min-width': '60'
   },
   {
     prop: 'position',
     label: '职务',
-    width: '70'
+    'min-width': '60'
   },
   {
     prop: 'sexLable',
     label: '性别',
-    width: '55'
+    'min-width': '55'
   },
   {
     prop: 'nativePlace',
     label: '籍贯',
-    width: '120'
+    'min-width': '100'
   },
   {
     prop: 'ship',
     label: '所属船只',
-    width: '110'
+    'min-width': '100'
   },
   {
     prop: 'competencyExpiry',
     label: '适任证书有效期至',
-    width: '180'
+    'min-width': '170'
   },
   {
     prop: 'rankLevel',
     label: '等级与职务',
-    width: '200',
+    'min-width': '160',
     className: 'multi-line-cell'
   },
   {
     prop: 'phone',
     label: '手机号码',
-    width: '110'
+    'min-width': '100'
   },
   {
     prop: 'trainingExpiry',
     label: '海船船员培训证书有效期至',
-    width: '180'
+    'min-width': '170'
   },
   {
     prop: 'healthExpiry',
     label: '海船船员健康证书有效期至',
-    width: '180'
+    'min-width': '170'
   }
 ])
 
@@ -317,7 +321,7 @@ onMounted(() => {
 
 <template>
   <div class="user-header">
-    <el-button type="primary" @click="handleAdd">新增</el-button>
+    <el-button v-if="isAdmin" type="primary" @click="handleAdd">新增</el-button>
     <!-- 搜索表单 -->
     <el-form :inline="true" :model="formInline" class="search-form">
       <el-form-item label="姓名">
@@ -380,7 +384,7 @@ onMounted(() => {
         :key="item.prop"
         :label="item.label"
         :prop="item.prop"
-        :width="item.width ? item.width : '125'"
+        :min-width="item['min-width'] ? item['min-width'] : '125'"
         :class-name="item.className || ''"
       >
         <template #default="scope">
@@ -404,7 +408,12 @@ onMounted(() => {
           <span v-else>{{ scope.row[item.prop] }}</span>
         </template>
       </el-table-column>
-      <el-table-column fixed="right" label="Operations" min-width="120">
+      <el-table-column
+        v-if="isAdmin"
+        fixed="right"
+        label="Operations"
+        width="150"
+      >
         <template #default="scope">
           <el-button type="primary" size="small" @click="handleEdit(scope.row)">
             编辑
@@ -569,6 +578,10 @@ onMounted(() => {
 }
 .table {
   position: relative;
+}
+// 操作列按钮保持单行，避免列宽不够时上下排列
+:deep(.el-table__fixed-right .cell) {
+  white-space: nowrap;
 }
 .pager {
   position: absolute;

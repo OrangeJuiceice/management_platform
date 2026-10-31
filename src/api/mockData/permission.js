@@ -55,6 +55,7 @@ export default {
             }
           ],
           token: Mock.Random.guid(),
+          role: 'admin',
           message: '获取成功'
         }
       }
@@ -79,6 +80,7 @@ export default {
             }
           ],
           token: Mock.Random.guid(),
+          role: 'viewer',
           message: '获取成功'
         }
       }
