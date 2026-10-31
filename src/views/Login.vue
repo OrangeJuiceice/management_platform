@@ -35,15 +35,15 @@ const login = async () => {
 </script>
 <template>
   <div class="body-login">
-    <el-form :model="loginForm" class="login-container" label-width="80px">
+    <el-form :model="loginForm" class="login-container">
       <h1>欢迎登录</h1>
-      <el-form-item label="用户名" prop="username">
+      <el-form-item label="用户名" prop="username" label-width="80px">
         <el-input
           v-model="loginForm.username"
           placeholder="请输入用户名"
         ></el-input>
       </el-form-item>
-      <el-form-item label="密码" prop="password">
+      <el-form-item label="密码" prop="password" label-width="80px">
         <el-input
           v-model="loginForm.password"
           placeholder="请输入密码"
